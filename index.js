@@ -1,7 +1,5 @@
 const debug = require('debug')('ntk:index');
 const R = require('ramda');
-// const { Either } = require('monet');
-const { I } = require('./invokeImmutableMethods');
 
 const listify = (maybeList) => (R.is(Array, maybeList)
   ? maybeList
@@ -11,32 +9,34 @@ const unlist = (list) => (R.length(list) === 1 ? list[0] : list);
 
 const applyToArgs = R.curry((args, fn) => fn(...args));
 
-const makeFromPath = function makeFromPath(keyArray, inputObject) {
-  // debug(keyArray);
-  const key = R.head(keyArray);
-  const restOfKeys = R.tail(keyArray);
-  return R.isEmpty(restOfKeys)
-    ? R.objOf(key, inputObject[key])
-    : R.objOf(key, makeFromPath(restOfKeys, inputObject[key]));
-};
+const pickPaths = (() => {
+  const makeFromPath = function makeFromPath(keyArray, inputObject) {
+    const key = R.head(keyArray);
+    const restOfKeys = R.tail(keyArray);
+    return R.isEmpty(restOfKeys)
+      ? R.objOf(key, inputObject[key])
+      : R.objOf(key, makeFromPath(restOfKeys, inputObject[key]));
+  };
 
-const strictMakeFromPath = function strictMakeFromPath(keyArray, inputObject) {
-  return R.path(keyArray, inputObject) === undefined
-    ? undefined
-    : makeFromPath(keyArray, inputObject);
-};
+  const strictMakeFromPath = function strictMakeFromPath(path, obj) {
+    return R.path(path, obj) === undefined
+      ? undefined
+      : makeFromPath(path, obj);
+  };
 
-const pickPaths = function pickPaths(paths, map) {
-  return R.reduce(
-    (acc, keyPath) => {
-      const pathObject = strictMakeFromPath(keyPath, map);
-      return pathObject
-        ? R.merge(acc, pathObject)
-        : acc;
-    },
-    new Object(),
-  );
-};
+  // eslint-disable-next-line no-shadow
+  return function pickPaths(paths, map) {
+    return R.reduce(
+      (acc, keyPath) => {
+        const pathObject = strictMakeFromPath(keyPath, map);
+        return pathObject
+          ? R.merge(acc, pathObject)
+          : acc;
+      },
+      new Object(),
+    );
+  };
+})();
 
 const userIsPermittedTo = R.curry(function userIsPermittedTo(
   roleSchema, action, userRoles, dataType,
@@ -60,8 +60,7 @@ const filterDocuments = R.curry(function filterDocuments(
   const permissions = R.pipe(
     Object.values,
     R.map(R.path([dataType, action])),
-    R.filter(R.is(Object)),
-    // R.filter(R.not(R.equals(undefined))),
+    R.filter(R.compose(R.not, R.equals(undefined))),
   )(roleSchema);
 
   debug('permissions');
