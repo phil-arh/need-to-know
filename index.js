@@ -1,34 +1,53 @@
-// const S = require('sanctuary').unchecked;
-// const { fromJS, Map } = require('immutable');
-const immutable = require('immutable');
 const debug = require('debug')('ntk:index');
 const R = require('ramda');
 // const { Either } = require('monet');
 const { I } = require('./invokeImmutableMethods');
-const {
-  v, t, m, record,
-} = require('./invokeImmutableMethods').collectionShortcuts;
 
-const fixArgs = function fixArgs(fn) {
-  return (...args) => fn(...t(args));
+const listify = (maybeList) => (R.is(Array, maybeList)
+  ? maybeList
+  : [maybeList]);
+
+const unlist = (list) => (R.length(list) === 1 ? list[0] : list);
+
+const applyToArgs = R.curry((args, fn) => fn(...args));
+
+const makeFromPath = function makeFromPath(keyArray, inputObject) {
+  // debug(keyArray);
+  const key = R.head(keyArray);
+  const restOfKeys = R.tail(keyArray);
+  return R.isEmpty(restOfKeys)
+    ? R.objOf(key, inputObject[key])
+    : R.objOf(key, makeFromPath(restOfKeys, inputObject[key]));
 };
 
-const listify = (maybeList) => (R.is(immutable.List, maybeList)
-  ? maybeList
-  : v(maybeList));
+const strictMakeFromPath = function strictMakeFromPath(keyArray, inputObject) {
+  return R.path(keyArray, inputObject) === undefined
+    ? undefined
+    : makeFromPath(keyArray, inputObject);
+};
 
-const unlist = (list) => (I.size(list) === 1 ? list.get(0) : list);
+const pickPaths = function pickPaths(paths, map) {
+  return R.reduce(
+    (acc, keyPath) => {
+      const pathObject = strictMakeFromPath(keyPath, map);
+      return pathObject
+        ? R.merge(acc, pathObject)
+        : acc;
+    },
+    new Object(),
+  );
+};
 
-const userIsPermittedTo = fixArgs(R.curry(function userIsPermittedTo(
+const userIsPermittedTo = R.curry(function userIsPermittedTo(
   roleSchema, action, userRoles, dataType,
 ) {
   return userRoles.some(R.tryCatch(
-    (role) => (I.path(v(role, dataType, action), roleSchema) !== undefined),
+    (role) => (R.path([role, dataType, action], roleSchema) !== undefined),
     R.F,
   ));
-}));
+});
 
-const filterDocuments = fixArgs(R.curry(function filterDocuments(
+const filterDocuments = R.curry(function filterDocuments(
   roleSchema,
   action,
   userRoles,
@@ -38,54 +57,41 @@ const filterDocuments = fixArgs(R.curry(function filterDocuments(
 ) {
   const unfilteredDocuments = listify(unfilteredDocumentsOrDocument);
 
-  const permissions = (() => {
-    const getPerms = (schemaForRole) => I.path(
-      v(dataType, action), schemaForRole,
-    );
-    debug(roleSchema);
-    /*
-    return roleSchema.entries()
-      .filter(([role]) => role in userRoles)
-      .reduce((_perms, [ignored, schema]) => (
-        getPerms(schema) ? v(..._perms, getPerms(schema)) : _perms
-      ), v());
-    */
-    return I.pour(
-      roleSchema,
-      I.entries,
-      v,
-      I.reduce((_perms, [ignored, schema]) => (
-        getPerms(schema) ? v(..._perms, getPerms(schema)) : _perms
-      ), v()),
-    );
-  })();
+  const permissions = R.pipe(
+    Object.values,
+    R.map(R.path([dataType, action])),
+    R.filter(R.is(Object)),
+    // R.filter(R.not(R.equals(undefined))),
+  )(roleSchema);
 
+  debug('permissions');
+  debug(permissions);
   return unfilteredDocuments.filter(
     (doc) => permissions.some(R.pipe(
-      I.prop('WHEN'),
-      R.tryCatch(I.applyToArgs(v(doc, options)), R.F),
+      R.prop('WHEN'),
+      R.tryCatch(applyToArgs([doc, options]), R.F),
     )),
   ).map(
     (doc) => R.ifElse(
-      I.some((x) => x(doc, options) === true),
+      R.any((x) => x(doc, options) === true),
       R.always(doc),
       R.pipe(
-        I.flatMap(R.tryCatch(
-          I.applyToArgs(v(doc, options)),
-          R.always(v()),
+        R.chain(R.tryCatch(
+          applyToArgs([doc, options]),
+          R.always([]),
         )),
-        I.map(R.split('.')),
-        R.flip(I.pickPaths)(doc),
+        R.map(R.split('.')),
+        R.flip(pickPaths)(doc),
       ),
-    )(permissions.map(I.prop('FIELDS'))),
+    )(R.map(R.prop('FIELDS'), permissions)),
   );
-}));
+});
 
 module.exports = function ntk(mutableRoleSchema) {
-  const roleSchema = t(mutableRoleSchema);
+  const roleSchema = mutableRoleSchema;
   const _filterDocuments = filterDocuments(roleSchema);
   const _userIsPermittedTo = userIsPermittedTo(roleSchema);
-  const toExport = {
+  return {
     userCanReadThisDataType: _userIsPermittedTo('read'),
     filterDocumentsAfterRead: R.pipe(_filterDocuments('read'), unlist),
     userCanUpdateThisDataType: _userIsPermittedTo('update'),
@@ -98,8 +104,4 @@ module.exports = function ntk(mutableRoleSchema) {
       );
     },
   };
-  return record({
-    immutable: record(toExport),
-    mutable: toExport,
-  });
 };
