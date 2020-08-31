@@ -14,5 +14,7 @@ module.exports = {
     'no-unused-vars': 1,
     'no-underscore-dangle': 0,
     'prefer-arrow-callback': 0,
+    'no-new-object': 0,
+    'no-array-constructor': 0,
   },
 };
