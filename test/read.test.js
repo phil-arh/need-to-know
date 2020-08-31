@@ -13,8 +13,7 @@ describe('Test filtering on read', function () {
     ntk.userCanReadThisDataType(['fake_role'], 'users').should.eq(false);
     ntk.userCanReadThisDataType(['admin'], 'fake_data_type').should.eq(false);
   });
-  /*
-  it('Filters out documents correctly', function () {
+  it.only('Filters out documents correctly', function () {
     ntk.filterDocumentsAfterRead(
       ['sales'],
       'customers',
@@ -23,5 +22,4 @@ describe('Test filtering on read', function () {
     );
     // .equals(fromJS([{ rep: 'a' }])).should.eq(true);
   });
-  */
 });

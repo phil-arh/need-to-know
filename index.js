@@ -19,7 +19,7 @@ const listify = (maybeList) => (R.is(immutable.List, maybeList)
 
 const unlist = (list) => (I.size(list) === 1 ? list.get(0) : list);
 
-const userIsPermittedTo = R.curry(fixArgs(function userIsPermittedTo(
+const userIsPermittedTo = fixArgs(R.curry(function userIsPermittedTo(
   roleSchema, action, userRoles, dataType,
 ) {
   return userRoles.some(R.tryCatch(
@@ -28,7 +28,7 @@ const userIsPermittedTo = R.curry(fixArgs(function userIsPermittedTo(
   ));
 }));
 
-const filterDocuments = R.curry(fixArgs(function filterDocuments(
+const filterDocuments = fixArgs(R.curry(function filterDocuments(
   roleSchema,
   action,
   userRoles,
@@ -43,13 +43,14 @@ const filterDocuments = R.curry(fixArgs(function filterDocuments(
       v(dataType, action), schemaForRole,
     );
     debug(roleSchema);
+    /*
     return roleSchema.entries()
       .filter(([role]) => role in userRoles)
       .reduce((_perms, [ignored, schema]) => (
         getPerms(schema) ? v(..._perms, getPerms(schema)) : _perms
       ), v());
-    /*
-    I.pour(
+    */
+    return I.pour(
       roleSchema,
       I.entries,
       v,
@@ -57,7 +58,6 @@ const filterDocuments = R.curry(fixArgs(function filterDocuments(
         getPerms(schema) ? v(..._perms, getPerms(schema)) : _perms
       ), v()),
     );
-    */
   })();
 
   return unfilteredDocuments.filter(
