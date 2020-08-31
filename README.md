@@ -1,6 +1,8 @@
 # NeedToKnow
 
-*A role-based permissions management library*
+*A role-based CRUD permissions management library*
+
+**N.B. Currently very much a work in progress - use with great caution.**
 
 ## What is it?
 
