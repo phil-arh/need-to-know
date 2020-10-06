@@ -137,7 +137,7 @@ const updateCustomerHandler = (userInfo, newCustomerJSON) => {
 
 ## Future development
 
-I'm currently unsure of the utility of filtering a document after finding that a user is not permitted to perform an update operation. It may make more sense simply to check whether the user is attempting to update fields they do not have permissions to change and reject the transaction. Functionality around updates may well be changed to this in a future version.
+I'm currently unsure of the utility of filtering a document after finding that a user is not permitted to perform an update operation. It may make more sense simply to check whether the user is attempting to update fields they do not have permissions to change and reject the transaction if so. Functionality around updates may well be changed to this in a future version.
 
 Currently, different combinations of conditions for the same user role and datatype must be handled with logic that is bundled haphazardly into WHEN and FIELDS functions - something antithetical to the goal of NTK. Version 2 of the schema format will most likely be more like:
 
@@ -157,12 +157,14 @@ Currently, different combinations of conditions for the same user role and datat
                 },
                 {
                     WHEN(doc, opts) { return doc.someValue < opts.aValue; },
-                    FIELDS: true,
+                    FIELDS: [
+                        '__all',
+                    ],
                 },
                 {
                     WHEN(doc, opts) { return doc.somethingElse !== undefined },
                     FIELDS: [
-                        '__allbut',
+                        '__allexcept',
                         'not.this.path',
                         'not.this.one',
                         'or.this.one.either',
