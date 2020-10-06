@@ -107,7 +107,8 @@ const filterDocuments = R.curry(function filterDocuments(
 });
 
 module.exports = function ntk(mutableRoleSchema) {
-  const roleSchema = mutableRoleSchema;
+  // clone to prevent schema being modified elsewhere
+  const roleSchema = R.clone(mutableRoleSchema);
   const _filterDocuments = filterDocuments(roleSchema);
   const _userIsPermittedTo = userIsPermittedTo(roleSchema);
   return {
