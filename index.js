@@ -1,11 +1,12 @@
-const debug = require('debug')('ntk:index');
+// const debug = require('debug')('ntk:index');
 const R = require('ramda');
 
 const listify = (maybeList) => (R.is(Array, maybeList)
   ? maybeList
   : [maybeList]);
 
-const unlist = (list) => (R.length(list) === 1 ? list[0] : list);
+// const unlist = (list) => (R.length(list) === 1 ? list[0] : list);
+const unlist = R.identity;
 
 const applyToArgs = R.curry((args, fn) => fn(...args));
 
@@ -25,11 +26,11 @@ const applyToArgs = R.curry((args, fn) => fn(...args));
 const pickPaths = (() => {
   const makeFromPath = function makeFromPath(path, obj) {
     return R.path(path, obj)
-      ? R.reduceRight((acc, key) => R.objOf(key, acc), R.path(path, obj), path)
+      ? R.reduce((acc, key) => R.objOf(key, acc), R.path(path, obj), path)
       : undefined;
   };
   // eslint-disable-next-line no-shadow
-  return function pickPaths(paths, obj) {
+  return R.curry(function pickPaths(paths, obj) {
     return R.reduce(
       (acc, keyPath) => {
         const pathObject = makeFromPath(keyPath, obj);
@@ -38,8 +39,9 @@ const pickPaths = (() => {
           : acc;
       },
       new Object(),
+      paths,
     );
-  };
+  });
 })();
 
 /**
@@ -76,21 +78,22 @@ const filterDocuments = R.curry(function filterDocuments(
   unfilteredDocumentsOrDocument,
 ) {
   const unfilteredDocuments = listify(unfilteredDocumentsOrDocument);
-
   const permissions = R.pipe(
-    Object.values,
+    Object.entries,
+    R.filter(([key]) => userRoles.includes(key)),
+    R.map(R.last),
     R.map(R.path([dataType, action])),
     R.filter(R.compose(R.not, R.equals(undefined))),
   )(roleSchema);
 
-  debug('permissions');
-  debug(permissions);
-  return unfilteredDocuments.filter(
+  const filteredDocuments = unfilteredDocuments.filter(
     (doc) => permissions.some(R.pipe(
       R.prop('WHEN'),
       R.tryCatch(applyToArgs([doc, options]), R.F),
     )),
-  ).map(
+  );
+  if (action === 'create') return filteredDocuments;
+  return filteredDocuments.map(
     (doc) => R.ifElse(
       R.any((fn) => fn(doc, options) === true),
       R.always(doc),
@@ -107,7 +110,6 @@ const filterDocuments = R.curry(function filterDocuments(
 });
 
 module.exports = function ntk(mutableRoleSchema) {
-  // clone to prevent schema being modified elsewhere
   const roleSchema = R.clone(mutableRoleSchema);
   const _filterDocuments = filterDocuments(roleSchema);
   const _userIsPermittedTo = userIsPermittedTo(roleSchema);
@@ -120,7 +122,7 @@ module.exports = function ntk(mutableRoleSchema) {
     userCanCreateThisDocument(userRoles, options, dataType, docs) {
       return R.equals(
         listify(docs),
-        _filterDocuments('create', userRoles, options, dataType, docs),
+        _filterDocuments('create', userRoles, dataType, options, docs),
       );
     },
   };
