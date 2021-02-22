@@ -1,5 +1,4 @@
 const chai = require('chai');
-// const { fromJS } = require('immutable');
 const debug = require('debug')('ntk:test');
 const roleSchema = require('./stubSchemas/stub.schema.js');
 const ntk = require('../index')(roleSchema);

@@ -26,7 +26,11 @@ const applyToArgs = R.curry((args, fn) => fn(...args));
 const pickPaths = (() => {
   const makeFromPath = function makeFromPath(path, obj) {
     return R.path(path, obj)
-      ? R.reduce((acc, key) => R.objOf(key, acc), R.path(path, obj), path)
+      ? R.reduce(
+        (acc, key) => R.objOf(key, acc),
+        R.path(path, obj),
+        R.reverse(path),
+      )
       : undefined;
   };
   // eslint-disable-next-line no-shadow
